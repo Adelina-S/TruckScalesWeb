@@ -1,0 +1,75 @@
+﻿<div class="scoreboard-container @Color">
+    <div class="scoreboard @Color">
+        @foreach (var digit in DisplayDigits)
+        {
+            <div class="digit @Color">
+                <span class="digit-value @Color">@digit</span>
+            </div>
+        }
+        <div class="unit @Color">кг</div>
+        @if (ShowSignal)
+        {
+            <div class="signal-indicator @(IsSignalActive ? "signal-active" : "signal-inactive") @Color">
+                @SignalText
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Color { get; set; } = "green";
+    [Parameter]
+    public bool ShowSignal { get; set; } = true;
+    [Parameter]
+    public string SignalText { get; set; } = "SIGNAL";
+    [Parameter]
+    public bool IsSignalActive { get; set; } = false;
+    [Parameter]
+    public int Weight { get; set; } = 0;
+
+    private string weight = "";
+    private char[] DisplayDigits = new char[10];
+
+    protected override void OnInitialized()
+    {
+        for (int i = 0; i < 10; i++) DisplayDigits[i] = '0';
+    }
+    public void UpdateWeight(int newWeight)
+    {
+        Weight = newWeight;
+        UpdateWeight(Weight.ToString(), true);
+    }
+    public void UpdateWeight(string newWeight, bool isDigits=false)
+    {
+        if (isDigits == false)
+            Weight = 0;
+        weight = newWeight ?? "";
+
+        // Заполняем нулями
+        for (int i = 0; i < 10; i++) DisplayDigits[i] = '0';
+
+        if (!string.IsNullOrEmpty(weight))
+        {
+            // Берем максимум 10 цифр с конца
+            int start = Math.Max(0, weight.Length - 10);
+            int count = Math.Min(10, weight.Length);
+
+            // Копируем цифры в обратном порядке
+            for (int i = 0; i < count; i++)
+            {
+                DisplayDigits[9 - i] = weight[weight.Length - 1 - i];
+            }
+        }
+
+         InvokeAsync(StateHasChanged);
+    }
+    public void SetSignal(bool active)
+    {
+        if (IsSignalActive != active)
+        {
+            IsSignalActive = active;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+} 

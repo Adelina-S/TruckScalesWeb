@@ -1,0 +1,529 @@
+﻿/* Базовые стили для всех вариантов */
+.scoreboard-container {
+    padding: 10px;
+    background: linear-gradient(145deg, #2c3e50, #1a252f);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    margin: 20px;
+}
+
+.scoreboard {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #111;
+    border: 10px solid #333;
+    border-radius: 15px;
+    padding: 30px 20px;
+    position: relative;
+    min-height: 180px;
+}
+
+.digit {
+    width: 60px;
+    height: 100px;
+    margin: 0 5px;
+    background: #000;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 20px rgba(0, 100, 0, 0.3), 0 5px 15px rgba(0, 0, 0, 0.8);
+}
+
+    .digit::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 50%;
+        background: linear-gradient(to bottom, rgba(0, 255, 0, 0.1) 0%, transparent 100%);
+        pointer-events: none;
+    }
+
+.digit-value {
+    font-family: 'Courier New', monospace;
+    font-size: 4rem;
+    font-weight: 700;
+    color: #0f0;
+    text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+}
+
+.unit {
+    position: relative;
+    right: 0px;
+    bottom: -40px;
+    color: #0f0;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-shadow: 0 0 5px #0f0;
+}
+
+/* Анимация при изменении цифры */
+@keyframes digitChange {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.digit.changed .digit-value {
+    animation: digitChange 0.3s ease;
+}
+
+/* ===== ВАРИАНТ 1: КЛАССИЧЕСКИЙ ЗЕЛЕНЫЙ ===== */
+.scoreboard-container.green {
+    background: linear-gradient(145deg, #1a472a, #0f2415);
+    border-color: #2d572c;
+}
+
+.scoreboard.green {
+    border-color: #2d572c;
+    background: #0a160a;
+}
+
+.digit.green {
+    box-shadow: inset 0 0 30px rgba(0, 255, 0, 0.4), 0 5px 20px rgba(0, 50, 0, 0.8);
+}
+
+    .digit.green::before {
+        background: linear-gradient(to bottom, rgba(0, 255, 0, 0.25) 0%, transparent 100%);
+    }
+
+.digit-value.green {
+    color: #0f0;
+    text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0, 0 0 40px #0f0, 0 0 70px #0f0, 0 0 80px #0f0;
+}
+
+.unit.green {
+    color: #0f0;
+    text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+}
+/* Эффект сетки для промышленного вида */
+.digit.green::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(to right, rgba(0, 255, 0, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 255, 0, 0.1) 1px, transparent 1px);
+    background-size: 10px 10px;
+    pointer-events: none;
+}
+
+/* ===== ВАРИАНТ 2: ЯРКИЙ КРАСНЫЙ ПРОМЫШЛЕННЫЙ ===== */
+.scoreboard-container.red {
+    background: linear-gradient(145deg, #47001a, #24000f);
+    border-color: #571c2c;
+}
+
+.scoreboard.red {
+    border-color: #ff0000;
+    background: #160a0a;
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+}
+
+.digit.red {
+    box-shadow: inset 0 0 40px rgba(255, 0, 0, 0.5), 0 5px 25px rgba(100, 0, 0, 0.9);
+}
+
+    .digit.red::before {
+        background: linear-gradient(to bottom, rgba(255, 0, 0, 0.3) 0%, transparent 100%);
+    }
+
+.digit-value.red {
+    color: #ff0000;
+    text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000, 0 0 40px #ff0000, 0 0 70px #ff0000, 0 0 80px #ff0000, 0 0 100px #ff0000;
+    font-weight: 900;
+}
+
+.unit.red {
+    color: #ff0000;
+    text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+}
+
+/* Эффект сетки для промышленного вида */
+.digit.red::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(to right, rgba(255, 0, 0, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 0, 0, 0.1) 1px, transparent 1px);
+    background-size: 10px 10px;
+    pointer-events: none;
+}
+
+/* ===== ВАРИАНТ 3: НЕОНОВО-КРАСНЫЙ С ЭФФЕКТАМИ ===== */
+.scoreboard-container.neon-red {
+    background: linear-gradient(145deg, #33001a, #1a000d);
+    border-color: #660033;
+}
+
+.scoreboard.neon-red {
+    border-color: #ff0066;
+    background: #0a0a16;
+    animation: neonBorder 2s infinite alternate;
+}
+
+@keyframes neonBorder {
+    0% {
+        box-shadow: 0 0 20px rgba(255, 0, 102, 0.5);
+    }
+
+    100% {
+        box-shadow: 0 0 40px rgba(255, 0, 102, 0.9);
+    }
+}
+
+.digit.neon-red {
+    box-shadow: inset 0 0 30px rgba(255, 0, 102, 0.6), 0 5px 20px rgba(100, 0, 40, 0.8);
+}
+
+    .digit.neon-red::before {
+        background: linear-gradient(to bottom, rgba(255, 0, 102, 0.3) 0%, transparent 100%);
+    }
+
+.digit-value.neon-red {
+    color: #ff0066;
+    text-shadow: 0 0 10px #ff0066, 0 0 20px #ff0066, 0 0 30px #ff0066, 0 0 40px #ff0066, 0 0 70px #ff0066, 0 0 80px #ff0066;
+    animation: neonPulse 1.5s infinite alternate;
+}
+
+@keyframes neonPulse {
+    0% {
+        text-shadow: 0 0 10px #ff0066, 0 0 20px #ff0066;
+    }
+
+    100% {
+        text-shadow: 0 0 20px #ff0066, 0 0 40px #ff0066, 0 0 60px #ff0066, 0 0 80px #ff0066;
+    }
+}
+
+.unit.neon-red {
+    color: #ff0066;
+    text-shadow: 0 0 10px #ff0066;
+    animation: neonPulse 1.5s infinite alternate;
+}
+
+/* ===== ВАРИАНТ 4: ОРАНЖЕВЫЙ (РАСКАЛЕННЫЙ МЕТАЛЛ) ===== */
+.scoreboard-container.orange-hot {
+    background: linear-gradient(145deg, #331900, #1a0d00);
+    border-color: #663300;
+}
+
+.scoreboard.orange-hot {
+    border-color: #ff6600;
+    background: #16100a;
+}
+
+.digit.orange-hot {
+    box-shadow: inset 0 0 40px rgba(255, 102, 0, 0.7), 0 5px 25px rgba(100, 40, 0, 0.9);
+    background: linear-gradient(to bottom, #220, #000);
+}
+
+    .digit.orange-hot::before {
+        background: linear-gradient(to bottom, rgba(255, 102, 0, 0.4) 0%, transparent 100%);
+    }
+
+.digit-value.orange-hot {
+    color: #ff6600;
+    text-shadow: 0 0 10px #ff6600, 0 0 20px #ff6600, 0 0 30px #ff6600, 0 0 40px #ff8800, 0 0 70px #ffaa00;
+    animation: heatWave 3s infinite;
+}
+
+@keyframes heatWave {
+    0%, 100% {
+        color: #ff6600;
+        text-shadow: 0 0 10px #ff6600, 0 0 20px #ff6600;
+    }
+
+    50% {
+        color: #ff8800;
+        text-shadow: 0 0 15px #ff6600, 0 0 30px #ff6600, 0 0 45px #ff8800;
+    }
+}
+
+.unit.orange-hot {
+    color: #ff6600;
+    text-shadow: 0 0 10px #ff6600;
+}
+
+/* ===== ВАРИАНТ 5: СИНИЙ LED (СОВРЕМЕННЫЙ) ===== */
+.scoreboard-container.blue {
+    background: linear-gradient(145deg, #001a47, #000f24);
+    border-color: #1c2c57;
+}
+
+.scoreboard.blue {
+    border-color: #0088ff;
+    background: #0a0a16;
+}
+
+.digit.blue {
+    box-shadow: inset 0 0 30px rgba(0, 136, 255, 0.5), 0 5px 20px rgba(0, 50, 100, 0.8);
+}
+
+    /*.digit.blue::before {
+        background: linear-gradient(to bottom, rgba(0, 136, 255, 0.25) 0%, transparent 100%);
+    }*/
+/* Эффект сетки для промышленного вида */
+.digit.blue::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(to right, rgba(0, 136, 255, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 136, 255, 0.1) 1px, transparent 1px);
+    background-size: 10px 10px;
+    pointer-events: none;
+}
+.digit-value.blue {
+    color: #0088ff;
+    text-shadow: 0 0 10px #0088ff, 0 0 20px #0088ff, 0 0 30px #0088ff, 0 0 40px #0088ff, 0 0 70px #0088ff;
+}
+
+.unit.blue {
+    color: #0088ff;
+    text-shadow: 0 0 10px #0088ff;
+}
+
+/* ===== ВАРИАНТ 6: ФИОЛЕТОВЫЙ НЕОН ===== */
+.scoreboard-container.purple {
+    background: linear-gradient(145deg, #1a0047, #0d0024);
+    border-color: #2c1c57;
+}
+
+.scoreboard.purple {
+    border-color: #a020f0;
+    background: #160a16;
+}
+
+.digit.purple {
+    box-shadow: inset 0 0 35px rgba(160, 32, 240, 0.6), 0 5px 22px rgba(50, 0, 100, 0.8);
+}
+
+    .digit.purple::before {
+        background: linear-gradient(to bottom, rgba(160, 32, 240, 0.3) 0%, transparent 100%);
+    }
+
+.digit-value.purple {
+    color: #a020f0;
+    text-shadow: 0 0 10px #a020f0, 0 0 20px #a020f0, 0 0 30px #a020f0, 0 0 40px #a020f0, 0 0 70px #c040ff;
+}
+
+.unit.purple {
+    color: #a020f0;
+    text-shadow: 0 0 10px #a020f0;
+}
+
+/* ===== ВАРИАНТ 7: ЗОЛОТОЙ VIP СТИЛЬ ===== */
+.scoreboard-container.gold {
+    background: linear-gradient(145deg, #332900, #1a1500);
+    border-color: #57471c;
+}
+
+.scoreboard.gold {
+    border-color: #ffd700;
+    background: #16160a;
+}
+
+.digit.gold {
+    box-shadow: inset 0 0 40px rgba(255, 215, 0, 0.7), 0 5px 25px rgba(100, 85, 0, 0.9);
+    background: linear-gradient(to bottom, #222200, #000);
+}
+
+    .digit.gold::before {
+        background: linear-gradient(to bottom, rgba(255, 215, 0, 0.4) 0%, transparent 100%);
+    }
+
+.digit-value.gold {
+    color: #ffd700;
+    text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700, 0 0 30px #ffd700, 0 0 40px #ffff00, 0 0 70px #ffff80;
+    font-weight: 800;
+}
+
+.unit.gold {
+    color: #ffd700;
+    text-shadow: 0 0 10px #ffd700;
+}
+
+/* ===== ВАРИАНТ 8: ХОЛОДНЫЙ БЕЛЫЙ ===== */
+.scoreboard-container.white {
+    background: linear-gradient(145deg, #333333, #1a1a1a);
+    border-color: #555555;
+}
+
+.scoreboard.white {
+    border-color: #ffffff;
+    background: #0a0a0a;
+}
+
+.digit.white {
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.4), 0 5px 20px rgba(50, 50, 50, 0.8);
+}
+
+    .digit.white::before {
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+    }
+
+.digit-value.white {
+    color: #ffffff;
+    text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #ffffff, 0 0 70px #ffffff;
+}
+
+.unit.white {
+    color: #ffffff;
+    text-shadow: 0 0 10px #ffffff;
+}
+
+/* Эффект сканирующей линии для продвинутых стилей */
+.scoreboard.red::after,
+.scoreboard.neon-red::after,
+.scoreboard.blue::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(to right, transparent, currentColor, transparent);
+    animation: scanLine 3s linear infinite;
+    opacity: 0.7;
+}
+
+@keyframes scanLine {
+    0% {
+        top: 0;
+    }
+
+    100% {
+        top: 100%;
+    }
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .digit {
+        width: 50px;
+        height: 85px;
+        margin: 0 4px;
+    }
+
+    .digit-value {
+        font-size: 3.5rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .digit {
+        width: 45px;
+        height: 75px;
+        margin: 0 3px;
+    }
+
+    .digit-value {
+        font-size: 3rem;
+    }
+
+    .scoreboard {
+        padding: 20px 15px;
+        min-height: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .digit {
+        width: 35px;
+        height: 60px;
+        margin: 0 2px;
+    }
+
+    .digit-value {
+        font-size: 2.2rem;
+    }
+
+    .unit {
+        font-size: 1.2rem;
+        right: 15px;
+        bottom: 8px;
+    }
+
+    .scoreboard {
+        padding: 15px 10px;
+        min-height: 120px;
+        border-width: 6px;
+    }
+}
+
+@media (max-width: 576px) {
+    .digit {
+        width: 28px;
+        height: 50px;
+        margin: 0 1px;
+    }
+
+    .digit-value {
+        font-size: 1.8rem;
+    }
+
+    .scoreboard-container {
+        margin: 10px;
+        padding: 15px;
+    }
+}
+/* Индикатор сигнала */
+.signal-indicator {
+    position: relative;
+    top: 43px;
+    left: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+/* Активный сигнал */
+.signal-active {
+    background-color: rgba(40, 167, 69, 0.2); /* Зеленый с прозрачностью */
+    color: #28a745;
+    border: 1px solid #28a745;
+    animation: pulse 2s infinite;
+}
+
+/* Неактивный сигнал */
+.signal-inactive {
+    background-color: rgba(108, 117, 125, 0.2); /* Серый с прозрачностью */
+    color: #6c757d;
+    border: 1px solid #6c757d;
+    /*text-decoration: line-through;*/
+}
+.signal-indicator.red.signal-active {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.signal-indicator.blue.signal-active {
+    background-color: rgba(23, 162, 184, 0.2);
+    color: #17a2b8;
+    border-color: #17a2b8;
+}

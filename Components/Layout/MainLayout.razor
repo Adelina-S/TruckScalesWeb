@@ -1,7 +1,17 @@
+@using TruckScalesWeb.Components.Pages;
 @inherits LayoutComponentBase
-@inject CookieThemeService CookieThemeService
+
+@inject AuthService AuthService;
+@inject IDataService DataService;
+@* @inject CookieThemeService CookieThemeService *@
 <RadzenComponents />
 
+@if (AuthService.IsAuthenticated==false)
+{
+    <TruckScalesWeb.Components.Pages.LoginCard OnLoginSuccess="HandleLoginSuccess"/>
+}
+else
+{
 <RadzenLayout>
     <RadzenHeader>
         <RadzenRow JustifyContent="JustifyContent.Start" AlignItems="AlignItems.Center" Gap="0">
@@ -10,7 +20,8 @@
             </RadzenColumn>
             <RadzenColumn Size="7">
                 <RadzenStack AlignItems="AlignItems.Center" Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-px-2">
-                    <RadzenAppearanceToggle />
+                    <RadzenLabel>@($"{DataService.GetUser()?.DisplayName} ({DataService.GetUser()?.RolesString})")</RadzenLabel>
+                        <RadzenButton Text="Выйти" Click="@Logout" />
                 </RadzenStack>
             </RadzenColumn>
         </RadzenRow>
@@ -18,7 +29,15 @@
     <RadzenBody Expanded="@sidebarExpanded">
         <RadzenRow class="rz-mx-auto rz-px-4 rz-pt-2 rz-pt-md-4 rz-pt-lg-6 rz-pt-xl-12 rz-pb-2 rz-pb-lg-12" Style="max-width: 1440px;">
             <RadzenColumn Size="12">
-            @Body
+           @*  @Body *@
+           @switch (CurrentComponent)
+                {
+                        case "Main":  <MainCard/> break;
+                        case "Weighings": <WeighingsCard/> break;
+                    case "Cars": <CarsCard/> break;
+                    case "Materials": <MaterialsCard/> break;
+                    case "Users": <UsersCard/> break;
+                }
             </RadzenColumn>
         </RadzenRow>
     </RadzenBody>
@@ -28,7 +47,13 @@
             <RadzenText Text="TruckScalesWeb" TextStyle="Radzen.Blazor.TextStyle.Subtitle1" class="rz-mb-0" style="color: var(--rz-sidebar-color);" />
         </RadzenStack>
         <RadzenPanelMenu>
-            <RadzenPanelMenuItem Text="Home" Path="" />
+            <RadzenPanelMenuItem Text="Главная панель" Click="@(() => ShowComponent("Main"))" Icon="description"/>
+            <RadzenPanelMenuItem Text="Взвешивания" Click="@(() => ShowComponent("Weighings"))" Icon="description"/>
+            <RadzenPanelMenuItem Text="Справочники" Icon="description">
+                <RadzenPanelMenuItem Text="Автомобили" Click="@(() => ShowComponent("Cars"))" Icon="directions_car" />
+                <RadzenPanelMenuItem Text="Материалы" Click="@(()=>ShowComponent("Materials"))"/>
+                <RadzenPanelMenuItem Text="Пользователи" Click="@(() => ShowComponent("Users"))" Icon="people" />
+            </RadzenPanelMenuItem>
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
             <RadzenText Text="TruckScalesWeb v1.0.0" TextStyle="Radzen.Blazor.TextStyle.Caption" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
@@ -36,3 +61,50 @@
         </RadzenStack>
     </RadzenSidebar>
 </RadzenLayout>
+}
+@code
+{
+    private bool IsInitialized = false;
+
+    private string CurrentComponent = string.Empty;
+    protected override async Task OnInitializedAsync()
+    {
+        var cameraAdresses = new List<string>()
+        {
+            "http://localhost:56789/camera?id=1",
+            "http://localhost:56789/camera?id=2",
+            "http://localhost:56789/camera?id=3",
+            "http://localhost:56789/camera?id=4"
+        };
+        DataService.SetPhotoUrls(cameraAdresses);
+
+        if (AuthService.IsAuthenticated == false)
+        {
+            bool windowsAuthAvailable = AuthService.GetWindowsIdentity() != null;
+            if (windowsAuthAvailable)
+            {
+                var result = await AuthService.TryWindowsLoginAsync();
+                if (result)
+                    HandleLoginSuccess();
+            }
+        }
+        IsInitialized = true;
+        await base.OnInitializedAsync();
+        AuthService.OnAuthStateChanged += StateHasChanged;
+    }
+    private void HandleLoginSuccess()
+    {
+        DataService.SetUser(AuthService.CurrentUser);
+        StateHasChanged();
+    }
+    async void Logout()
+    {
+        AuthService.Logout();
+
+    }
+    async void ShowComponent(string componentName)
+    {
+        CurrentComponent = componentName;
+        await InvokeAsync(StateHasChanged);
+    }
+}

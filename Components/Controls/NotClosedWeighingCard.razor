@@ -1,0 +1,92 @@
+﻿@inject IDataService DataService
+
+<style>
+    .wrap-text span{
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+</style>
+
+<RadzenStack Orientation="Orientation.Vertical">
+<RadzenRow>
+    <RadzenStack Orientation="Orientation.Horizontal">
+        <RadzenButton Text="Сбросить" Click="@Reset"/>
+        <RadzenButton Text="Удалить"/>
+        <RadzenButton Text="Посмотреть талон"/>
+        <RadzenButton Text="Фотографии"/>
+    </RadzenStack>
+</RadzenRow>
+<RadzenRow>
+    <RadzenDataGrid TItem="Weighing" Data="Weighings" GridLines="DataGridGridLines.Both"
+                        @bind-Value="SelectedWeighing" RowClick="@OnRowClick">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Weighing.CarsList)" Title="Автомобили" CssClass="wrap-text"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.FirstWeightMode)" Title="Тип" Width="15%"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.Weight)" Title="Вес" Width="15%"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.MaterialString)" Title="Материал" Width="15%"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.FirstWeightDate)" Title="Дата" Width="15%" CssClass="wrap-text"/>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenRow>
+</RadzenStack>
+
+@code {
+    [Parameter] public EventCallback<Weighing> OnClick { get; set; }
+
+    private List<Weighing> Weighings = new List<Weighing>();
+
+    private IList<Weighing> SelectedWeighing = new List<Weighing>();
+
+    private DateTime? lastClickTime;
+    private Weighing lastClickedItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+
+    }
+    private async Task LoadData()
+    {
+        Weighings = await DataService.GetNotClosedWeighings();
+    }
+    public
+    async Task Refresh() => await LoadData();
+
+    private async Task OnRowClick(DataGridRowMouseEventArgs<Weighing> args)
+    {
+        // Проверка на двойной клик (интервал 300 мс)
+        var now = DateTime.Now;
+        if (lastClickTime.HasValue == false)
+        {
+            lastClickedItem = args.Data;
+            lastClickTime = now;
+        }
+        else if (lastClickedItem == args.Data)
+        {
+            var dt = (now - lastClickTime.Value).TotalMilliseconds;
+            if (dt < 300)
+                await Confirm();
+            else
+                lastClickTime = now;
+        }
+        else
+        {
+            lastClickedItem = args.Data;
+            lastClickTime = now;
+        }
+    }
+    private async Task Confirm()
+    {
+        var weighing = SelectedWeighing.FirstOrDefault();
+        //if (weighing!=null)
+        await OnClick.InvokeAsync(weighing);
+    }
+    private async Task Reset()
+    {
+        SelectedWeighing = new List<Weighing>();
+        await Confirm();
+    }
+}

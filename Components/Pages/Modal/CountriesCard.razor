@@ -1,0 +1,82 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow Visible=true>
+            <RadzenStack Orientation="Orientation.Horizontal">
+                <RadzenButton Text="Добавить" ButtonStyle="ButtonStyle.Primary" Click="@AddCountryClick"/>
+                <RadzenButton Text="Редактировать" ButtonStyle="ButtonStyle.Secondary" Click="@ChangeCountryClick" Disabled="@(SelectedCountry.Any()==false)"/>
+                <RadzenButton Text="Поднять" ButtonStyle="ButtonStyle.Secondary" Click="@UpCountry" Disabled="@(SelectedCountry.Any() == false)" />
+                <RadzenButton Text="Опустить" ButtonStyle="ButtonStyle.Secondary" Click="@DownCountry" Disabled="@(SelectedCountry.Any() == false)" />
+            </RadzenStack>
+        </RadzenRow>
+        <RadzenRow Style="margin-top: 10px;">
+            <RadzenDataGrid TItem="Country" Data="Countries" @bind-Value="SelectedCountry"
+                            FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive">
+                <Columns>
+                    <RadzenDataGridColumn Property="@nameof(Country.FullName)" Title="Полное название" TextAlign="TextAlign.Center" />
+                    <RadzenDataGridColumn Property="@nameof(Country.ShortName)" Title="Краткое название" TextAlign="TextAlign.Center" />
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenRow>
+    </RadzenStack>    
+    </RadzenCard>
+@code {
+    List<Country> Countries;
+    IList<Country> SelectedCountry = new List<Country>();
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+    private async Task LoadData(int? selected = null)
+    {
+        Countries = await DataService.GetAllCountries();
+        if (selected != null)
+            SelectedCountry = Countries.Where(t => t.Id == selected).ToList();
+        else
+            SelectedCountry = new List<Country>();
+        await InvokeAsync(StateHasChanged);
+    }
+    private async void UpCountry()
+    {
+        var country = SelectedCountry.FirstOrDefault();
+        if (country == null && country.Sorter==0) return;
+        var result = await DataService.MoveCountry(country.Sorter, country.Sorter - 1);
+        if (result)    
+            await LoadData(country.Id);
+    }
+    private async void DownCountry()
+    {
+        var country = SelectedCountry.FirstOrDefault();
+        if (country == null) return;
+        var result = await DataService.MoveCountry(country.Sorter, country.Sorter + 1);
+        if (result) await LoadData(country.Id);
+    }
+    private async void AddCountryClick()
+    {
+        var result = await DialogService.OpenAsync<AddCountryCard>("Введите данные страны", new Dictionary<string, object>(),
+        new DialogOptions() { Width = "30%" })
+        as AddCountryCard.DialogResult;
+        if (result == null || result.Confirmed==false) return;
+
+        await DataService.AddCountry(result.FullName, result.ShortName);
+        await LoadData();
+    }
+    private async void ChangeCountryClick()
+    {
+        var country = SelectedCountry.FirstOrDefault();
+        if (country == null) return;
+        var data = new Dictionary<string, object>();
+        data.Add("Country", country);
+        var result = await DialogService.OpenAsync<AddCountryCard>("Изменение данных страны", data,
+        new DialogOptions() { Width = "30%" })
+        as AddCountryCard.DialogResult;
+        if (result == null || result.Confirmed==false) return;
+
+        await DataService.UpdateCountry(country.Id, result.FullName, result.ShortName);
+        await LoadData(country.Id);
+    }
+}

@@ -1,0 +1,73 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject NotificationService NotificationService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Полное наименование</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="FullName" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Краткое наименование</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="ShortName" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary" Click="@Confirm" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult(){Confirmed=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    string FullName;
+    string ShortName;
+    [Parameter]
+    public Country Country { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        if (Country != null)
+        {
+            FullName = Country.FullName;
+            ShortName = Country.ShortName;
+        }
+    }
+    private async Task Confirm()
+    {
+        List<string> errors = new List<string>();
+        if (string.IsNullOrEmpty(FullName))
+            errors.Add("Полное название не может быть пустым");
+        if (string.IsNullOrEmpty(ShortName))
+            errors.Add("Короткое название не может быть пустым");
+        var allCountries = await DataService.GetAllCountries();
+        if (Country == null)
+        {
+            if (allCountries.Any(t=>t.FullName==FullName))
+                errors.Add("Такое полное название страны уже есть");
+            if (allCountries.Any(t=>t.ShortName==ShortName))
+                errors.Add("Такое краткое название страны уже есть");
+        }
+        else
+        {
+            if (allCountries.Any(t => t.Id!=Country.Id && t.FullName == FullName))
+                errors.Add("Такое полное название страны уже есть");
+            if (allCountries.Any(t => t.Id!=Country.Id && t.ShortName == ShortName))
+                errors.Add("Такое краткое название страны уже есть");
+        }
+        if (errors.Count > 0)
+        {
+            NotificationService.NotifyError(string.Join("\n", errors));
+            return;
+        }
+        DialogService.Close(new DialogResult {Confirmed = true, FullName = FullName, ShortName = ShortName });
+    }
+    public class DialogResult
+    {
+        public bool Confirmed{ get; set; }
+        public string FullName { get; set; }
+        public string ShortName { get; set; }
+    }
+}

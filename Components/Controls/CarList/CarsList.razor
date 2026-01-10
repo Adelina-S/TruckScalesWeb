@@ -1,0 +1,100 @@
+﻿@inject DialogService DialogService;
+@inject IDataService DataService;
+
+<RadzenStack Orientation="Orientation.Vertical" Style="@GetContainerStyle()">
+    <RadzenDataGrid class="rz-w-100" TItem="Car" Data="SelectedCars" @bind-Value="GridSelected"
+                    GridLines="DataGridGridLines.Both" Style="flex-grow: 1;">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Car.Position)" Title="..." Width="40px"/>
+            <RadzenDataGridColumn Property="@nameof(Car.GosNumberFull)" Title="Номер" Width="150px"/>
+            <RadzenDataGridColumn Property="@nameof(Car.Model)" Title="Марка и модель" Width="150px"/>
+            <RadzenDataGridColumn Property="@nameof(Car.CarTypeName)" Title="Тип авто" Width="150px"/>
+            <RadzenDataGridColumn Property="@nameof(Car.Description)" Title="Примечание"/>
+        </Columns>
+    </RadzenDataGrid>
+    <RadzenStack Orientation="Orientation.Horizontal" Style="margin-top: auto;"
+                 Gap="10px" JustifyContent="JustifyContent.Center">
+        <RadzenButton Text="Добавить" Click="@AddCarClick" @bind-Disabled="buttonsDisabled"/>
+        <div style="width: 10px;"></div> <!-- разделитель -->
+        <RadzenButton Text="Удалить" Disabled="@(GridSelected.Count == 0 || buttonsDisabled)" Click="DeleteCar" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public List<Car> SelectedCars { get; set; } = new List<Car>();
+    [Parameter]
+    public EventCallback<List<Car>> SelectedCarsChanged { get; set; }
+    [Parameter]
+    public bool HaveCarErrors { get; set; } = true;
+    IList<Car> GridSelected = new List<Car>();
+    List<Car> Cars { get; set; } = new List<Car>();
+
+    bool buttonsDisabled = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        Cars = await DataService.GetAllCars();
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task SetCars(List<Guid> cars)
+    {
+        var carsDict = Cars.ToDictionary(c => c.Id);
+
+        SelectedCars = cars
+            .Select(id => carsDict[id])
+            .ToList();
+        buttonsDisabled = true;
+        HaveCarErrors = Common.CheckCars(SelectedCars);
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task Reset()
+    {
+        SelectedCars = new List<Car>();
+        GridSelected = new List<Car>();
+        buttonsDisabled = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task AddCarClick()
+    {
+        var data = new Dictionary<string, object>();
+        data.Add("ExcludeCars", SelectedCars.Select(t=>t.Id).ToList());
+        data.Add("ShowPrimary", SelectedCars.Count==0);
+        data.Add("ShowSecondary", SelectedCars.Count>0);
+        var result = await DialogService.OpenAsync<SelectCar>("Выберите автомобиль", data,
+      new DialogOptions() { Width = "50%" })
+      as SelectCar.DialogResult;
+        if (result == null || result.Confirmed == false || result.CarId==null) return;
+        PutCar(result.CarId.Value);
+        await InvokeAsync(StateHasChanged);
+    }
+    private void PutCar(Guid carId)
+    {
+        var car = Cars.FirstOrDefault(t => t.Id == carId);
+        SelectedCars.Add(car);
+        SelectedCars = SelectedCars.ToList();
+        HaveCarErrors = Common.CheckCars(SelectedCars);
+    }
+    private void DeleteCar()
+    {
+        var selectedCar = GridSelected.FirstOrDefault();
+        if (selectedCar is null) return;
+        SelectedCars.Remove(selectedCar);
+        SelectedCars = SelectedCars.ToList();
+        GridSelected = new List<Car>();
+        HaveCarErrors = Common.CheckCars(SelectedCars);
+    }
+    private string GetContainerStyle()
+    {
+        return $"display: flex; flex-direction: column; " +
+           $"gap: 12px; position: relative; user-select: none; " +
+           $"border-radius: 5px; border: 1px solid black; padding: 15px; " +
+           $"height: 200px; min-width: 250px; " +
+           $"background-color: white; box-sizing: border-box;";
+    }
+}

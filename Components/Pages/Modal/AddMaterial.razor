@@ -1,0 +1,82 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject NotificationService NotificationService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Наименование</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="Name" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Доступно одиночное взвешивание</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox TValue="bool" @bind-Value="CanBeSingle" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Доступно транзитное взвешивание</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox TValue="bool" @bind-Value="CanBeTransit" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow Visible=@(Material is not null)>
+            <RadzenColumn Size="6"><RadzenLabel>Доступность материала</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox TValue="bool" @bind-Value="IsActive" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary" Click="@Confirm" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult(){Confirmed=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    string Name;
+    bool CanBeSingle;
+    bool CanBeTransit;
+    bool IsActive = true;
+    [Parameter]
+    public Material Material { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        if (Material != null)
+        {
+            Name = Material.Name;
+            CanBeSingle = Material.CanBeSingle;
+            CanBeTransit = Material.CanBeTransit;
+            IsActive = Material.IsActive;
+        }
+    }
+    private async Task Confirm()
+    {
+        List<string> errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(Name))
+            errors.Add("Название не может быть пустым");
+        var allMaterials = await DataService.GetAllMaterials();
+        if (Material == null)
+        {
+            if (allMaterials.Any(t => t.Name == Name))
+                errors.Add("Такое название материала уже есть");
+        }
+        else
+        {
+            if (allMaterials.Any(t => t.Id != Material.Id && t.Name == Name))
+                errors.Add("Такое название материала уже есть");
+        }
+        if (errors.Count > 0)
+        {
+            NotificationService.NotifyError(string.Join("\n", errors));
+            return;
+        }
+        DialogService.Close(new DialogResult { Confirmed = true, Name = Name, CanBeSingle=CanBeSingle, CanBeTransit=CanBeTransit,
+        IsActive=IsActive}); 
+    }
+    public class DialogResult
+    {
+        public bool Confirmed { get; set; }
+        public string Name { get; set; }
+        public bool CanBeSingle{ get; set; }
+        public bool CanBeTransit{ get; set; }
+        public bool IsActive{ get; set; }
+    }
+}

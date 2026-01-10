@@ -1,0 +1,84 @@
+﻿@using TruckScalesWeb.Models;
+@using Microsoft.EntityFrameworkCore;
+
+@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject AuthService AuthService;
+<RadzenCard Variant="Variant.Filled">
+    <RadzenRow JustifyContent="JustifyContent.Center">
+        <RadzenLabel>Справочник пользователей</RadzenLabel>
+    </RadzenRow>
+    @* <RadzenRow Visible=@(GlobalData.User.IsAdministrator)> *@
+    <RadzenRow Visible=@(DataService.GetUser().IsAdministrator)>
+        <RadzenStack Orientation="Orientation.Horizontal">
+            <RadzenButton Text="Добавить" ButtonStyle="ButtonStyle.Primary" Click="@AddUserClick"/>
+            <RadzenButton Text="Редактировать" ButtonStyle="ButtonStyle.Secondary" Disabled=@(SelectedUser == null) Click="@ChangeUserClick" />
+        </RadzenStack>
+    </RadzenRow>
+    <RadzenRow Style="margin-top: 10px;">
+        <RadzenDataGrid TItem="User" Data="Users" @bind-Value="SelectedUser"
+            FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive">
+            <Columns>
+                <RadzenDataGridColumn Property="@nameof(User.Account)" Title="Аккаунт" TextAlign="TextAlign.Center"/>
+                <RadzenDataGridColumn Property="@nameof(User.DisplayName)" Title="Имя" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(User.HasPassword)" Title="Пароль"  Width="10%" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(User.IsActiveString)" Title="Действующий"  Width="10%" TextAlign="TextAlign.Center"/>
+                <RadzenDataGridColumn Property="@nameof(User.LastLoginString)" Title="Последний вход"TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(User.RolesString)" Title="Роли" Width="30%" TextAlign="TextAlign.Center"/>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenRow>
+</RadzenCard>
+@code {
+    // [Parameter]
+    // public GlobalData GlobalData { get; set; } = null!;
+    List<User> Users = new List<User>();
+    IList<User> SelectedUser = null!;
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+
+    private async Task LoadData()
+    {
+        Users = await DataService.GetAllUsers();
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task AddUserClick()
+    {
+        var data = new Dictionary<string, object>();
+        data.Add("User", null);
+
+        var result = await DialogService.OpenAsync<AddUserCard>("Введите данные пользователя", data, new DialogOptions() { Width = "40%" })
+        as AddUserCard.DialogResult;
+        if (result == null || result.User == null) return;
+
+        await DataService.AddUser(result.User.Account, result.User.DisplayName, result.User.PasswordHash, result.User.IsActive, result.User.Roles.ToList());
+        await LoadData();
+    }
+    private async Task ChangeUserClick()
+    {
+        var user = SelectedUser.FirstOrDefault();
+        if (user == null) return;
+        var data = new Dictionary<string, object>();
+        data.Add("User", user);
+
+        var result = await DialogService.OpenAsync<AddUserCard>("Измените данные пользователя", data, new DialogOptions() { Width = "40%" })
+       as AddUserCard.DialogResult;
+        if (result == null || result.User == null) return;
+
+
+        await DataService.ChangeUser(result.User.Id, result.User.Account, result.User.DisplayName, 
+            result.User.PasswordHash, result.User.IsActive, result.User.Roles.ToList(), result.NewPassword);
+        await LoadData();
+
+        // if (GlobalData.User.Id==user.Id)
+        if (DataService.GetUser().Id==user.Id)
+        {
+            AuthService.Logout();
+        }
+    }
+}

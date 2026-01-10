@@ -1,0 +1,94 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow Visible=true>
+            <RadzenStack Orientation="Orientation.Horizontal">
+                <RadzenButton Text="Добавить" ButtonStyle="ButtonStyle.Primary" Click="@AddCarTypeClick" />
+                <RadzenButton Text="Редактировать" ButtonStyle="ButtonStyle.Secondary" Click="@ChangeCarTypeClick" Disabled="@(SelectedCarType.Any() == false)" />
+                <RadzenButton Text="Поднять" ButtonStyle="ButtonStyle.Secondary" Click="@UpCarType" Disabled="@(SelectedCarType.Any() == false)" />
+                <RadzenButton Text="Опустить" ButtonStyle="ButtonStyle.Secondary" Click="@DownCarType" Disabled="@(SelectedCarType.Any() == false)" />
+            </RadzenStack>
+        </RadzenRow>
+        <RadzenRow Style="margin-top: 10px;">
+            <RadzenDataGrid TItem="CarType" Data="CarTypes" @bind-Value="SelectedCarType"
+                            FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive">
+                <Columns>
+                    <RadzenDataGridColumn Property="@nameof(CarType.Name)" Title="Название" TextAlign="TextAlign.Center" />
+                    <RadzenDataGridColumn Property="@nameof(CarType.CanBePrimary)" Title="Ведущий" TextAlign="TextAlign.Center"/>
+                    <RadzenDataGridColumn Property="@nameof(CarType.CanBeSecondary)" Title="Ведомый" TextAlign="TextAlign.Center"/>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    List<CarType> CarTypes;
+    IList<CarType> SelectedCarType = new List<CarType>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+    }
+
+    private async Task LoadData(int? selected = null)
+    {
+        CarTypes = await DataService.GetAllCarTypes();
+        if (selected != null)
+            SelectedCarType = CarTypes.Where(t => t.Id == selected).ToList();
+        else
+            SelectedCarType = new List<CarType>();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void UpCarType()
+    {
+        var carType = SelectedCarType.FirstOrDefault();
+        if (carType == null || carType.Sorter == 0) return;
+        var result = await DataService.MoveCarType(carType.Sorter, carType.Sorter - 1);
+        if (result)
+            await LoadData(carType.Id);
+    }
+
+    private async void DownCarType()
+    {
+        var carType = SelectedCarType.FirstOrDefault();
+        if (carType == null) return;
+        var result = await DataService.MoveCarType(carType.Sorter, carType.Sorter + 1);
+        if (result)
+            await LoadData(carType.Id);
+    }
+
+    private async void AddCarTypeClick()
+    {
+        var result = await DialogService.OpenAsync<AddCarTypeCard>("Введите название типа автомобиля",
+            new Dictionary<string, object>(),
+            new DialogOptions() { Width = "30%" }) as AddCarTypeCard.DialogResult;
+
+        if (result == null || result.Confirmed == false) return;
+
+        await DataService.AddCarType(result.Name, result.CanBePrimary, result.CanBeSecondary);
+        await LoadData();
+    }
+
+    private async void ChangeCarTypeClick()
+    {
+        var carType = SelectedCarType.FirstOrDefault();
+        if (carType == null) return;
+
+        var data = new Dictionary<string, object>();
+        data.Add("CarType", carType);
+
+        var result = await DialogService.OpenAsync<AddCarTypeCard>("Изменение типа автомобиля", data,
+            new DialogOptions() { Width = "30%" }) as AddCarTypeCard.DialogResult;
+
+        if (result == null || result.Confirmed == false) return;
+
+        await DataService.UpdateCarType(carType.Id, result.Name, result.CanBePrimary, result.CanBeSecondary);
+        await LoadData(carType.Id);
+    }
+}

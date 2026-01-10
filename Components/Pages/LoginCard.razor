@@ -1,0 +1,93 @@
+﻿@inject AuthService AuthService;
+@inject NotificationService NotificationService;
+
+<div style="display: flex; justify-content: center; padding-top: 30vh;">
+    <RadzenCard Variant="Variant.Filled" Style="width: 400px;">
+    <RadzenRow class="rz-my-3" JustifyContent="JustifyContent.Center">
+        <RadzenLabel>Вход в систему</RadzenLabel>
+    </RadzenRow>
+    <RadzenRow JustifyContent="JustifyContent.Center" class="rz-w-100 rz-my-3">
+        <RadzenTextBox class="rz-w-100" Placeholder="Учётная запись" Disabled=@UseWindowsIdentity 
+        @bind-Value="Account"></RadzenTextBox>
+    </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.Center" class="rz-w-100 rz-my-3">
+            <RadzenPassword class="rz-w-100" Placeholder="Пароль" Disabled=@UseWindowsIdentity
+            @bind-Value="Password"></RadzenPassword>
+    </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.Center" class="rz-my-3">
+        <RadzenLabel>Windows авторизация</RadzenLabel>
+        <RadzenCheckBox TValue="bool" Disabled=@(WindowsIdentityAvailable==false)
+            @bind-Value="UseWindowsIdentity"></RadzenCheckBox>
+    </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.Center" class="rz-my-3">
+            <RadzenButton Text="Войти" ButtonStyle="ButtonStyle.Primary"
+              Click="@TryLogin"/>
+        </RadzenRow>
+</RadzenCard>
+</div>
+@code {
+    [Parameter]
+    public EventCallback OnLoginSuccess { get; set; }
+
+    bool WindowsIdentityAvailable = false;
+    bool BoxesEnabled = false;
+    System.Security.Principal.WindowsIdentity WindowsIdentity;
+    string Account = string.Empty;
+    string Password = string.Empty;
+    bool _useWindowsIdentity = false;
+    bool UseWindowsIdentity
+    {
+        get=> _useWindowsIdentity;
+        set
+        {
+            _useWindowsIdentity = value;
+            if (_useWindowsIdentity)
+                Account = WindowsIdentity?.Name;
+            else
+                Account = string.Empty;
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        WindowsIdentity = AuthService.GetWindowsIdentity();
+        WindowsIdentityAvailable = WindowsIdentity != null;
+        UseWindowsIdentity = WindowsIdentityAvailable;
+    }
+    async void TryLogin()
+    {
+        bool loginResult = false;
+        if (UseWindowsIdentity)
+        {
+            loginResult = await AuthService.TryWindowsLoginAsync();
+            if (loginResult==false)
+            {
+                NotificationService.NotifyError("Вы не заведены в систему");
+            }
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(Account))
+            {
+                NotificationService.NotifyError("Введите имя учётно записи");
+                return;
+            }
+            else if (string.IsNullOrEmpty(Password))
+            {
+                NotificationService.NotifyError("Введите пароль");
+                return;
+            }
+            loginResult = await AuthService.TryPasswordLoginAsync(Account, Password);
+            if (loginResult==false)
+            {
+                NotificationService.NotifyError("Неверный логин и/или пароль");
+                return;
+            }
+            else
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        if (loginResult)
+            await OnLoginSuccess.InvokeAsync();
+    }
+}

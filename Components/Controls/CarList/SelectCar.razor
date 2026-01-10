@@ -1,0 +1,110 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenDataGrid TItem="Car" Data="AllCars" class="rz-w-100" @bind-Value="SelectedCar"
+                        FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                        RowClick="@OnRowClick">
+            <Columns>
+                <RadzenDataGridColumn Property="@nameof(Car.GosNumber)" Title="Номер"/>
+                <RadzenDataGridColumn Property="@nameof(Car.Model)" Title="Модель"/>
+                <RadzenDataGridColumn Property="@nameof(Car.CountryName)" Title="Страна" TextAlign="TextAlign.Center"
+                    FilterValue="CountryFilters" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+                    <FilterTemplate>
+                        <RadzenDropDown TValue="List<string>" Data="CountryFilterData"
+                            AllowClear=true class="rz-w-100" Multiple=true @bind-Value=CountryFilters/>
+                    </FilterTemplate>    
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn Property="@nameof(Car.CarTypeName)" Title="Тип авто" TextAlign="TextAlign.Center"
+                    FilterValue="CarTypeFilters" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+                    <FilterTemplate>
+                        <RadzenDropDown TValue="List<string>" Data="CarTypesFilterData"
+                            AllowClear="true" class="rz-w-100" Multiple=true @bind-Value=CarTypeFilters />
+                    </FilterTemplate>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary"
+                          Click="@Confirm"
+                          Disabled="@(SelectedCar.Any()==false)"/>
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult(){Confirmed=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+        </RadzenCard>
+
+@code {
+    [Parameter]
+    public List<Guid> ExcludeCars { get; set; } = new List<Guid>();
+    [Parameter]
+    public bool ShowPrimary{ get; set; }
+    [Parameter]
+    public bool ShowSecondary{ get; set; }
+    List<Car> AllCars { get; set; } = new List<Car>();
+    IList<Car> SelectedCar { get; set; } = new List<Car>();
+
+    private DateTime? lastClickTime;
+    private Car lastClickedItem;
+
+    List<string> CarTypeFilters = null!;
+    List<string> CarTypesFilterData = new List<string>();
+
+    List<string> CountryFilters = null!;
+    List<string> CountryFilterData = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+
+    private async Task LoadData()
+    {
+        var cars = (await DataService.GetAllCars()).Where(t => t.IsActive).Where(t => ExcludeCars.Contains(t.Id) == false);
+        if (ShowPrimary == false)
+            cars = cars.Where(t => t.CarType.CanBePrimary == false);
+        if (ShowSecondary == false)
+            cars = cars.Where(t => t.CarType.CanBeSecondary == false);
+        AllCars = cars.ToList();
+        CarTypesFilterData = AllCars.OrderBy(t => t.CarTypeName).Select(t => t.CarTypeName).Distinct().ToList();
+        CountryFilterData = AllCars.OrderBy(t => t.CountryName).Select(t => t.CountryName).Distinct().ToList();
+
+        await InvokeAsync(StateHasChanged);
+    }
+    private void Confirm()
+    {
+        DialogService.Close(new DialogResult() { Confirmed = true, CarId = SelectedCar.FirstOrDefault()?.Id });
+    }
+    private async Task OnRowClick(DataGridRowMouseEventArgs<Car> args)
+    {
+        // Проверка на двойной клик (интервал 300 мс)
+        var now = DateTime.Now;
+        if (lastClickTime.HasValue == false)
+        {
+            lastClickedItem = args.Data;
+            lastClickTime = now;
+        }
+        else if (lastClickedItem==args.Data)
+        {
+            var dt = (now - lastClickTime.Value).TotalMilliseconds;
+            if (dt < 300)
+                Confirm();
+            else
+                lastClickTime = now;
+        }
+        else
+        {
+            lastClickedItem = args.Data;
+            lastClickTime = now;
+        }
+    }
+    public class DialogResult
+    {
+        public bool Confirmed { get; set; }
+        public Guid? CarId { get; set; }
+    }
+}

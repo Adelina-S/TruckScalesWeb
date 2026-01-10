@@ -1,0 +1,217 @@
+﻿@implements IDisposable
+<div  style="@GetContainerStyle()">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <div style="@GetLabelStyle()">@Label</div>
+    }
+
+    <div class="switch-wrapper" style="@GetWrapperStyle()">
+        <!-- Текст "Порожнее" -->
+        <span  style="@GetStateLabelStyle(WeighingMode.Empty)"
+              @onclick="@(() => SetState(WeighingMode.Empty))">
+            @EmptyText
+        </span>
+
+        <!-- Сам переключатель -->
+        <div style="@GetTrackStyle()"
+             @onclick="@ToggleState"
+             tabindex="@(IsDisabled ? -1 : 0)">
+
+            <div style="@GetThumbStyle()">
+                <div style="@GetThumbInnerStyle()"></div>
+            </div>
+
+            <!-- Фон трека -->
+            <div style="@GetTrackBackgroundStyle()"></div>
+
+        </div>
+
+        <!-- Текст "Гружёное" -->
+        <span style="@GetStateLabelStyle(WeighingMode.Loaded)"
+              @onclick="@(() => SetState(WeighingMode.Loaded))">
+            @LoadedText
+        </span>
+    </div>
+
+    <!-- Состояние disabled -->
+    @if (IsDisabled)
+    {
+        <div style="@GetDisabledOverlayStyle()"></div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public WeighingMode Value { get; set; }
+
+    [Parameter]
+    public EventCallback<WeighingMode> ValueChanged { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "Режим взвешивания";
+
+    [Parameter]
+    public string EmptyText { get; set; } = "Порожнее";
+
+    [Parameter]
+    public string LoadedText { get; set; } = "Гружёное";
+
+    [Parameter]
+    public bool IsDisabled { get; set; }
+
+    [Parameter]
+    public string SwitchWidth { get; set; } = "80px";
+
+    [Parameter]
+    public string SwitchHeight { get; set; } = "36px";
+
+    [Parameter]
+    public int AnimationDuration { get; set; } = 200;
+
+    private bool isFocused = false;
+    private DotNetObjectReference<WeighingModeSwitch>? dotNetHelper;
+
+    protected override void OnInitialized()
+    {
+        dotNetHelper = DotNetObjectReference.Create(this);
+    }
+    public async Task SetValueAndDisabled(WeighingMode mode, bool disabled)
+    {
+        Value = mode;
+        IsDisabled = disabled;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task SetDisabled(bool disabled)
+    {
+        IsDisabled = disabled;
+        await InvokeAsync(StateHasChanged);
+    }
+    private string GetContainerStyle()
+    {
+        return "display: inline-flex; flex-direction: column; " +
+               "gap: 8px; position: relative; user-select: none;"+
+               "border-radius: 5px; border: 1px solid black; padding: 5px;";
+    }
+
+    private string GetLabelStyle()
+    {
+        return "font-weight: 500; color: #495057; font-size: 18px; " +
+               "margin-bottom: 4px; width: 100%; text-align: center;";
+    }
+
+    private string GetWrapperStyle()
+    {
+        return "display: flex; align-items: center; gap: 12px;";
+    }
+
+    private string GetStateLabelStyle(WeighingMode mode)
+    {
+        var isActive = Value == mode;
+        var color = isActive ? GetColorForMode(mode) : "#6c757d";
+        var fontWeight = isActive ? "600" : "400";
+        var cursor = IsDisabled ? "default" : "pointer";
+        var opacity = IsDisabled ? "0.6" : "1";
+
+        return $"color: {color}; font-weight: {fontWeight}; font-size: 18px; " +
+               $"cursor: {cursor}; opacity: {opacity}; transition: color {AnimationDuration}ms ease;";
+    }
+
+    private string GetTrackStyle()
+    {
+        var cursor = IsDisabled ? "not-allowed" : "pointer";
+        var borderColor = IsDisabled ? "#ced4da" : (isFocused ? "#3d5afe" : "#ced4da");
+
+        return $"position: relative; width: {SwitchWidth}; height: {SwitchHeight}; " +
+               $"border-radius: calc({SwitchHeight} / 2); border: 2px solid {borderColor}; " +
+               $"cursor: {cursor}; overflow: hidden; transition: all {AnimationDuration}ms ease; " +
+               $"{(isFocused ? "box-shadow: 0 0 0 0.2rem rgba(61, 90, 254, 0.25);" : "")}";
+    }
+
+    private string GetThumbStyle()
+    {
+        var thumbSize = $"calc({SwitchHeight} - 8px)";
+        var isLoaded = Value == WeighingMode.Loaded;
+        var leftPosition = isLoaded
+            ? $"calc(100% - {thumbSize} - 4px)"
+            : "4px";
+
+        return $"position: absolute; top: 2px; left: {leftPosition}; " +
+               $"width: {thumbSize}; height: {thumbSize}; " +
+               $"background-color: white; border-radius: 50%; " +
+               $"box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2; " +
+               $"transition: left {AnimationDuration}ms cubic-bezier(0.4, 0, 0.2, 1); " +
+               $"display: flex; align-items: center; justify-content: center;";
+    }
+
+    private string GetThumbInnerStyle()
+    {
+        var color = GetColorForMode(Value);
+        var size = $"calc({SwitchHeight} / 3)";
+
+        return $"width: {size}; height: {size}; border-radius: 50%; " +
+               $"background-color: {color}; " +
+               $"transition: background-color {AnimationDuration}ms ease;";
+    }
+
+    private string GetTrackBackgroundStyle()
+    {
+        var color = GetColorForMode(Value);
+        var isLoaded = Value == WeighingMode.Loaded;
+        var width = "100%";//isLoaded ? "100%" : "0%";
+
+        return $"position: absolute; top: 0; left: 0; width: {width}; height: 100%; " +
+               $"background-color: {color}; opacity: 0.2; z-index: 1; " +
+               $"transition: width {AnimationDuration}ms ease;";
+    }
+
+    private string GetDisabledOverlayStyle()
+    {
+        return "position: absolute; top: 0; left: 0; right: 0; bottom: 0; " +
+               "background-color: rgba(255, 255, 255, 0.5); z-index: 3; " +
+               "cursor: not-allowed; border-radius: 4px;";
+    }
+
+    private string GetColorForMode(WeighingMode mode)
+    {
+        return mode == WeighingMode.Loaded ? "#4CAF50" : "#2196F3";
+    }
+
+    private async Task ToggleState()
+    {
+        if (IsDisabled) return;
+
+        var newValue = Value == WeighingMode.Loaded
+            ? WeighingMode.Empty
+            : WeighingMode.Loaded;
+
+        await SetValue(newValue);
+    }
+
+    private async Task SetState(WeighingMode mode)
+    {
+        if (IsDisabled || Value == mode) return;
+        await SetValue(mode);
+    }
+
+    private async Task SetValue(WeighingMode value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(Value);
+    }
+    private void OnFocus()
+    {
+        if (!IsDisabled) isFocused = true;
+        StateHasChanged();
+    }
+
+    private void OnBlur()
+    {
+        isFocused = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        dotNetHelper?.Dispose();
+    }
+}

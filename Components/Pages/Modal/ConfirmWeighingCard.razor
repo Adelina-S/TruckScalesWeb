@@ -1,0 +1,128 @@
+﻿@inject DialogService DialogService
+@inject IDataService DataService;
+<RadzenCard Variant="Variant.Text">
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenDataGrid TItem="GridItem" Data="Data" GridLines="DataGridGridLines.Both">
+                <Columns>
+                    <RadzenDataGridColumn Property="@nameof(GridItem.Title)" Title="Параметр" TextAlign="TextAlign.Center" />
+                    <RadzenDataGridColumn Property="@nameof(GridItem.Value)" Title="Значение" TextAlign="TextAlign.Center" />
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenColumn>
+        <RadzenColumn Size="6">
+            <RadzenRow>
+                <RadzenColumn Size="6">
+                    <RadzenImage @bind-Path="imageData[0]" Style="width:400px;height:300px;" />
+                </RadzenColumn>
+                <RadzenColumn Size="6">
+                    <RadzenImage @bind-Path="imageData[1]" Style="width:400px;height:300px;" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow>
+                <RadzenColumn Size="6">
+                    <RadzenImage @bind-Path="imageData[2]" Style="width:400px;height:300px;" />
+                </RadzenColumn>
+                <RadzenColumn Size="6">
+                    <RadzenImage @bind-Path="imageData[3]" Style="width:400px;height:300px;" />
+                </RadzenColumn>
+            </RadzenRow>
+        </RadzenColumn>
+    </RadzenRow>
+<RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton @bind-Text="ConfirmButtonText" @bind-Disabled="buttonDisabled" ButtonStyle="ButtonStyle.Primary" Click="@ConfirmClick" />
+            <RadzenButton Text="Отмена" @bind-Disabled="buttonDisabled" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                      Click="@(()=>DialogService.Close(new DialogResult(){Confirm=false}))" />
+        </RadzenRow>
+</RadzenCard>
+
+@code {
+    [Parameter]
+    public int Weight{ get; set; }
+    [Parameter]
+    public WeighingMode WeightMode { get; set; }
+    [Parameter]
+    public WeightTypes WeightType { get; set; }
+    [Parameter]
+    public List<Car> Cars { get; set; }
+    [Parameter]
+    public Material Material { get; set; }
+    [Parameter]
+    public string Talon{ get; set; }
+    [Parameter]
+    public Weighing Weighing{ get; set; }
+    [Parameter]
+    public User Operator{ get; set; }
+
+    private List<string> imageData = new List<string>() { "", "", "", "" };
+    private List<Photo> Photos = new List<Photo>();
+
+    List<GridItem> Data = new List<GridItem>();
+
+    string ConfirmButtonText = "Подтвердить";
+    bool buttonDisabled = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Data.Add(new GridItem("Взвешивание", Weighing is null ? "Первичное" : "от " + Weighing.OneWeighings[0].WeightTime.ToString("dd.MM.yyyy HH.mm")));
+        Data.Add(new GridItem("Тип взвешивания", WeightType == WeightTypes.Standard ? "Стандартное" : "Иное"));
+        Data.Add(new GridItem("Номер талона", Talon.Substring(4)));
+        Data.Add(new GridItem("Режим", WeightMode == WeighingMode.Empty ? "Порожнее" : "Груженое"));
+        Data.Add(new GridItem("Результат взвешивания", Weight.ToString("0 кг")));
+        if (Weighing is not null)
+        {
+            int tareWeight, bruttoWeight, nettoWeight;
+            tareWeight = WeightMode == WeighingMode.Empty ? Weight : Weighing.OneWeighings[0].Weight;
+            bruttoWeight = WeightMode == WeighingMode.Loaded ? Weight : Weighing.OneWeighings[0].Weight;
+            nettoWeight = bruttoWeight - tareWeight;
+            Data.Add(new GridItem("Вес тары", tareWeight.ToString("0 кг")));
+            Data.Add(new GridItem("Вес брутто", bruttoWeight.ToString("0 кг")));
+            Data.Add(new GridItem("Вес нетто", nettoWeight.ToString("0 кг")));
+        }
+        Data.Add(new GridItem("Основное ТС", Cars[0].FullName));
+        for (int i = 1; i < Cars.Count; i++)
+            Data.Add(new GridItem("Дополнительное ТС", Cars[i].FullName));
+        Data.Add(new GridItem("Материал", Material is null ? "Не задан" : Material.Name));
+        Data.Add(new GridItem("Оператор", Operator.DisplayName));
+
+        var urls = DataService.GetPhotoUrls();
+        for (int i=0;i<4;i++)
+        {
+            var url = urls[i];
+            var imageBytes = await Common.GetCameraImageAsync(url);
+            var photoId = Guid.NewGuid();
+            var photo = new Photo() { Id = photoId, Title = $"Изображение с камеры {i + 1}", IsNormal = true, PhotoContent = new PhotoContent() { PhotoId = photoId, ByteArray = imageBytes } };
+            Photos.Add(photo);
+            // Конвертируем в base64 для RadzenImage
+            imageData[i] = $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+        }
+    }
+    private async Task ConfirmClick()
+    {
+        ConfirmButtonText = "Сохранение...";
+        buttonDisabled = true;
+        Weighing saveResult;
+        if (Weighing is null)
+            saveResult = await DataService.CreateNewWeighing(Talon, WeightMode == WeighingMode.Empty, Weight, Operator.Id, false, Photos, WeightType, Cars.Select(t => t.Id).ToList(), Material?.Id);
+        else
+            saveResult = await DataService.CloseStandardWeighing(Weighing.Id, Weight, Operator.Id, false, Photos, Material.Id);
+        DialogService.Close(new DialogResult() { Confirm = true, Result = saveResult });
+    }
+
+    public class DialogResult
+    {
+        public bool Confirm { get; set; }
+        public Weighing Result{ get; set; }
+    }
+    class GridItem
+    {
+        public string Title{ get; set; }
+        public string Value{ get; set; }
+        public GridItem (string title, string value)
+        {
+            Title = title;
+            Value = value;
+        }
+    }
+}

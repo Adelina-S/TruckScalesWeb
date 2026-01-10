@@ -1,0 +1,107 @@
+﻿
+
+@inject IDataService DataService;
+@inject DialogService DialogService;
+<RadzenCard Variant="Variant.Filled">
+    <RadzenRow JustifyContent="JustifyContent.Center">
+        <RadzenLabel>Справочник автомобилей</RadzenLabel>
+    </RadzenRow>
+    <RadzenRow Visible=true class="rz-my-3">
+        <RadzenStack Orientation="Orientation.Horizontal">
+            <RadzenButton Text="Добавить" ButtonStyle="ButtonStyle.Primary" Click="@AddCarClick"/>
+            <RadzenButton Text="Редактировать" ButtonStyle="ButtonStyle.Secondary" Click="@ChangeCarClick" Disabled="@(SelectedCar.Any() == false)" />
+            <RadzenButton Text="Страны" ButtonStyle="ButtonStyle.Primary" Click="@CountriesClick"/>
+            <RadzenButton Text="Типы авто" ButtonStyle="ButtonStyle.Primary" Click="@CarTypesClick" />
+        </RadzenStack>
+    </RadzenRow>
+    <RadzenRow Style="margin-top: 10px;">
+        <RadzenDataGrid TItem="Car" Data="Cars" @bind-Value="SelectedCar"
+                        FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true">
+            <Columns>
+                <RadzenDataGridColumn Property="@nameof(Car.GosNumber)" Title="Гос. номер" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(Car.Model)" Title="Марка и модель" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(Car.CountryName)" Title="Страна" Width="10%" TextAlign="TextAlign.Center"
+                                      FilterValue="CountryFilters" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+                    <FilterTemplate>
+                        <RadzenDropDown TValue="List<string>" Data="Cars.OrderBy(t => t.CountryName).Select(t => t.CountryName).Distinct().ToList()"
+                                        AllowClear="true" class="rz-w-100" Multiple=true @bind-Value=CountryFilters />
+                    </FilterTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn Property="@nameof(Car.CarTypeName)" Title="Тип авто" Width="10%" TextAlign="TextAlign.Center"
+                                      FilterValue="CarTypeFilters" FilterOperator="FilterOperator.Contains" LogicalFilterOperator="LogicalFilterOperator.Or">
+                    <FilterTemplate>
+                        <RadzenDropDown TValue="List<string>" Data="Cars.OrderBy(t => t.CarTypeName).Select(t => t.CarTypeName).Distinct().ToList()"
+                                        AllowClear="true" class="rz-w-100" Multiple=true @bind-Value=CarTypeFilters />
+                    </FilterTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn Property="@nameof(Car.IsActive)" Title="Действующая" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(Car.LastUsedTime)"  Title="Последнее использование" Width="30%" TextAlign="TextAlign.Center"> 
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenRow>
+</RadzenCard>
+
+@code {
+    List<Car> Cars = new List<Car>();
+    IList<Car> SelectedCar = new List<Car>();
+    List<string> CountryFilters;
+    List<string> CarTypeFilters;
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+
+    private async Task LoadData()
+    {
+        Cars = await DataService.GetAllCars(); 
+        //CountryFilters = Cars.OrderBy(t => t.CountryName).Select(t => t.CountryName).Distinct().ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+    void FilterValueChanged<T>(List<T> value)
+    {
+        if (value != null && !value.Any())
+            value = null;
+    }
+    private async void CountriesClick()
+    {
+        await DialogService.OpenAsync<CountriesCard>("Справочник стран",
+        null, new DialogOptions()
+            { Width = "60%", Height = "70%" });
+        await LoadData();
+    }
+    private async void CarTypesClick()
+    {
+        await DialogService.OpenAsync<CarTypesCard>("Справочник типов автомобилей",
+        null, new DialogOptions()
+        { Width = "60%", Height = "70%" });
+        await LoadData();
+    }
+    private async void AddCarClick()
+    {
+        var result = await DialogService.OpenAsync<AddCarCard>("Введите данные автомобиля", new Dictionary<string, object>(),
+       new DialogOptions() { Width = "30%" })
+       as AddCarCard.DialogResult;
+        if (result == null || result.Confirmed == false) return;
+
+        await DataService.AddCar(result.GosNumber, result.Model, result.Country.Id, result.CarType.Id, result.IsActive) ;
+        await LoadData();
+    }
+    private async void ChangeCarClick()
+    {
+        if (SelectedCar is null || SelectedCar.Any() == false) return;
+        var data = new Dictionary<string, object>();
+        var selectedCar = SelectedCar.FirstOrDefault();
+        data.Add("Car", selectedCar);
+        var result = await DialogService.OpenAsync<AddCarCard>("Редактирование данных автомобиля", data,
+       new DialogOptions() { Width = "30%" })
+       as AddCarCard.DialogResult;
+        if (result == null || result.Confirmed == false) return;
+
+        await DataService.UpdateCar(selectedCar.Id, result.GosNumber, result.Model, result.Country.Id, result.CarType.Id, result.IsActive);
+        await LoadData();
+    }
+}

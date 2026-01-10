@@ -8,14 +8,21 @@
     <base href="@NavigationManager.BaseUri" />
     <RadzenTheme Theme="material" />
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="stylesheet" href="css/displays.css" />
+    @* <link rel="stylesheet" href="css/weighingModeSwitch.css" /> *@
     <link rel="icon" href="favicon.ico" />
     <HeadOutlet @rendermode="@InteractiveServer" />
 </head>
 
 <body>
-    <Routes @rendermode="@InteractiveServer" />
+    @* Прямой рендеринг MainLayout *@
+    <MainLayout @rendermode="@InteractiveServer" />
+
     <script src="_framework/blazor.web.js"></script>
-    <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+ @*    <Routes @rendermode="@InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script> *@
+    @* <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script> *@
 </body>
 
 </html>

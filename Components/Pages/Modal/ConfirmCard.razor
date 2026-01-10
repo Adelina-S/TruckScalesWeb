@@ -1,0 +1,22 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject NotificationService NotificationService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary" 
+            Click="@(()=>DialogService.Close(new DialogResult(){Confirm=true}))" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult{Confirm=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+
+    public class DialogResult
+    {
+        public bool Confirm{ get; set; }
+    }
+}

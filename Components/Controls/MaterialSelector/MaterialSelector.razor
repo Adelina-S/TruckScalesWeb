@@ -1,0 +1,169 @@
+﻿@implements IDisposable
+@inject DialogService DialogService;
+@inject IDataService DataService;
+
+<div style="@GetContainerStyle()">
+    <!-- Надпись "Материал" -->
+    <div style="@GetLabelStyle()">@Label</div>
+    
+    <!-- Текущий материал -->
+     <div style="@GetMaterialDisplayStyle()">
+        @if (Value != null && !string.IsNullOrEmpty(Value.Name))
+        {
+            <span style="font-size: 18px; font-weight: 500;">@Value.Name</span>
+        }
+        else
+        {
+            <span style="font-size: 16px; color: #6c757d; font-style: italic;">не выбрано</span>
+        }
+    </div>
+    <div style="@GetButtonsContainerStyle()">
+    <RadzenStack Orientation="Orientation.Horizontal">
+        <RadzenButton Text="Добавить" Click="@HandleSetClick" Disabled="@(IsDisabled || IsSetButtonDisabled)"
+                          Style="flex: 1;" />
+            <div style="width: 10px;"></div> <!-- разделитель -->
+        <RadzenButton Text="Сбросить" Click="@HandleResetClick" Disabled="@(IsDisabled || IsResetButtonDisabled)"
+                          Style="flex: 1;" />
+    </RadzenStack>
+   </div>
+    <!-- Состояние disabled -->
+    @if (IsDisabled)
+    {
+        <div style="@GetDisabledOverlayStyle()"></div>
+    } 
+</div>
+
+@code {
+    [Parameter]
+    public Material Value { get; set; }
+
+    [Parameter]
+    public EventCallback<Material?> ValueChanged { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "Материал";
+
+    [Parameter]
+    public bool IsDisabled { get; set; }
+
+    [Parameter]
+    public int AnimationDuration { get; set; } = 200;
+
+    [Parameter]
+    public EventCallback OnSetClicked { get; set; }
+
+    private bool isFocused = false;
+    private DotNetObjectReference<MaterialSelector>? dotNetHelper;
+
+    // Определяем, когда кнопки должны быть отключены
+    private bool IsSetButtonDisabled => IsDisabled;
+    private bool IsResetButtonDisabled => IsDisabled || Value == null || string.IsNullOrEmpty(Value.Name);
+
+    protected override void OnInitialized()
+    {
+        dotNetHelper = DotNetObjectReference.Create(this);
+    }
+    public async Task SetValueAndDisabled(Material material, bool disabled)
+    {
+        Value = material;
+        IsDisabled = disabled;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task Reset()
+    {
+        IsDisabled = false;
+        Value = null;
+        await InvokeAsync(StateHasChanged);
+    }
+    private string GetContainerStyle()
+    {
+        return $"display: flex; flex-direction: column; " +
+          $"gap: 12px; position: relative; user-select: none; " +
+          $"border-radius: 5px; border: 1px solid black; padding: 15px; " +
+          $"width: 100%; height: 100%; min-width: 250px; " +
+          $"background-color: white; box-sizing: border-box;";
+    }
+
+    private string GetLabelStyle()
+    {
+        return "font-weight: 600; color: #495057; font-size: 20px; " +
+               "margin-bottom: 4px; width: 100%; text-align: center; " +
+               "padding-bottom: 8px; border-bottom: 1px solid #e9ecef;";
+    }
+
+    private string GetMaterialDisplayStyle()
+    {
+        var hasValue = Value != null && !string.IsNullOrEmpty(Value.Name);
+        var backgroundColor = hasValue ? "#d4edda" : "#f8f9fa";
+        var borderColor = hasValue ? "#c3e6cb" : "#e9ecef";
+
+        return $"display: flex; align-items: center; justify-content: center; " +
+               $"flex-grow: 1; " + // Занимает всё доступное пространство
+               $"border-radius: 4px; padding: 8px 12px; " +
+               $"background-color: {backgroundColor}; border: 1px solid {borderColor}; " +
+               $"transition: all {AnimationDuration}ms ease; " +
+               $"text-align: center;";
+    }
+
+    private string GetButtonsContainerStyle()
+    {
+        return $"display: flex; gap: 12px; margin-top: auto; " +
+       $"justify-content: center; width: 100%;";
+    }
+
+    private string GetButtonStyle(string buttonType)
+    {
+        var isSetButton = buttonType == "set";
+        var isDisabled = isSetButton ? IsSetButtonDisabled : IsResetButtonDisabled;
+
+        var backgroundColor = isSetButton ? 
+            (isDisabled ? "#e9ecef" : "#007bff") : 
+            (isDisabled ? "#e9ecef" : "#6c757d");
+
+        var textColor = isDisabled ? "#6c757d" : "white";
+        var cursor = isDisabled ? "not-allowed" : "pointer";
+        var hoverBackgroundColor = isSetButton ? "#0056b3" : "#545b62";
+        var activeBackgroundColor = isSetButton ? "#004085" : "#3d4348";
+
+        return $"flex: 1; padding: 10px 16px; border: none; border-radius: 4px; " +
+               $"font-size: 16px; font-weight: 500; cursor: {cursor}; " +
+               $"background-color: {backgroundColor}; color: {textColor}; " +
+               $"transition: all {AnimationDuration}ms ease; " +
+               $"min-height: 42px; " +
+               $"{(isDisabled ? "" : $"&:hover {{ background-color: {hoverBackgroundColor}; }} &:active {{ background-color: {activeBackgroundColor}; transform: translateY(1px); }}")}";
+    }
+
+    private string GetDisabledOverlayStyle()
+    {
+        return "position: absolute; top: 0; left: 0; right: 0; bottom: 0; " +
+               "background-color: rgba(255, 255, 255, 0.5); z-index: 10; " +
+               "cursor: not-allowed; border-radius: 4px;";
+    }
+
+    private async Task HandleSetClick()
+    {
+        if (IsDisabled) return;
+        var data = new Dictionary<string, object>();
+        var result = await DialogService.OpenAsync<SelectMaterial>("Выберите материал", data,
+      new DialogOptions() { Width = "50%" })
+      as SelectMaterial.DialogResult;
+        if (result == null || result.Confirmed == false || result.MaterialId == null) return;
+        Value = (await DataService.GetAllMaterials()).FirstOrDefault(t => t.Id == result.MaterialId);
+        //PutCar(result.CarId.Value);
+        await InvokeAsync(StateHasChanged);
+        await OnSetClicked.InvokeAsync();
+    }
+
+    private async Task HandleResetClick()
+    {
+        if (IsDisabled || Value == null) return;
+        
+        Value = null;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    public void Dispose()
+    {
+        dotNetHelper?.Dispose();
+    }
+}

@@ -1,0 +1,134 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject NotificationService NotificationService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Учётная запись</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="Account" class="rz-w-100"/></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Имя пользователя</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="Name" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Пароль</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenPassword @bind-Value="Password" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Подтверждение пароля</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenPassword @bind-Value="ConfirmPassword" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Действующая</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox TValue="bool" @bind-Value="IsActive"/></RadzenColumn>
+        </RadzenRow>
+
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Роли</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6">
+                <RadzenCheckBoxList TValue="Role" class="rz-w-100" TextProperty="Name" Data="Roles" Orientation="Orientation.Vertical"
+                    @bind-Value="SelectedRoles"/>
+                </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary" Click="@Confirm"/>
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary"  Variant="Variant.Text" Shade="Shade.Darker"
+            Click="@(()=>DialogService.Close(new DialogResult{User=null}))"/>
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    List<Role> Roles = null!;
+    IEnumerable<Role> SelectedRoles = new List<Role>();
+    string Account;
+    string Name;
+    string Password;
+    string ConfirmPassword;
+    bool IsActive = true;
+    string FilledPassword = "********";
+    [Parameter]
+    public User User { get; set; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            Roles = await DataService.GetAllRoles();
+
+            if (User!=null)
+            {
+                Account = User.Account;
+                Name = User.DisplayName;
+                IsActive = User.IsActive;
+                if (string.IsNullOrEmpty(User.HasPassword)==false)
+                {
+                    Password = FilledPassword;
+                    ConfirmPassword = FilledPassword;
+                }
+                SelectedRoles = Roles.Where(t => User.Roles.Any(r => r.Id == t.Id));
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    private async Task Confirm()
+    {
+        List<string> errors = new List<string>();
+        if (string.IsNullOrEmpty(Account))
+            errors.Add("Аккаунт не может быть пустым");
+        if (string.IsNullOrEmpty(Name))
+            errors.Add("Имя не может быть пустым");
+        if (User == null)
+        {
+            if (await DataService.GetUser(Account)!=null)
+                errors.Add("Такой аккаунт уже есть");
+            if ((string.IsNullOrEmpty(Password) == false || string.IsNullOrEmpty(ConfirmPassword) == false) && Password != ConfirmPassword)
+                errors.Add("Пароли не совпадают");
+        }
+        else
+        {
+            var sameAccountUser = await DataService.GetUser(Account);
+            if (sameAccountUser!=null && sameAccountUser.Id!=User.Id)
+                errors.Add("Такой аккаунт уже есть");
+            if ((Password != FilledPassword || ConfirmPassword != FilledPassword) && Password != ConfirmPassword)
+                errors.Add("Пароли не совпадают");
+        }
+        if (errors.Count > 0)
+        {
+            NotificationService.Notify(new NotificationMessage()
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Style = "position: fixed; top: 25%; left: 50%; transform: translate(-50%, -50%); z-index: 9999;",
+                    Summary = string.Join("\n", errors),
+                    Duration = 3000
+                });
+            return;
+        }
+        User user = new User()
+            {   
+                Id=Guid.NewGuid(),
+                Account = Account,
+                DisplayName = Name,
+                IsActive = IsActive,
+                LastLogin = DateTime.MinValue,
+                PasswordHash = Common.HashPassword(Password),
+                Roles = SelectedRoles.ToList()
+            };
+        DialogResult result = new DialogResult { User = user };
+        if (User!=null)
+        {
+            user.Id = User.Id;
+            if (Password!=FilledPassword)
+                result.NewPassword = true;
+        }
+        DialogService.Close(result);
+    }
+    public class DialogResult
+    {
+        public User User{ get; set; }
+        public bool NewPassword{ get; set; }
+    }
+}

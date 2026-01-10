@@ -1,0 +1,95 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject NotificationService NotificationService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Название</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="Name" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Может быть ведущим</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox @bind-Value="CanBePrimary"/></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Может быть ведомым</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox @bind-Value="CanBeSecondary" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary" Click="@Confirm" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult(){Confirmed=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    string Name;
+    bool CanBePrimary;
+    bool CanBeSecondary;
+
+    [Parameter]
+    public CarType CarType { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        if (CarType != null)
+        {
+            Name = CarType.Name;
+            CanBePrimary = CarType.CanBePrimary;
+            CanBeSecondary = CarType.CanBeSecondary;
+        }
+    }
+
+    private async Task Confirm()
+    {
+        List<string> errors = new List<string>();
+
+        if (string.IsNullOrEmpty(Name))
+            errors.Add("Название не может быть пустым");
+
+        if (string.IsNullOrWhiteSpace(Name))
+            errors.Add("Название не может состоять только из пробелов");
+
+        if (CanBePrimary == false && CanBeSecondary == false)
+            errors.Add("Необходимо выбрать возможность быть ведущим или ведомым");
+
+        var allCarTypes = await DataService.GetAllCarTypes();
+
+        if (CarType == null)
+        {
+            if (allCarTypes.Any(t => t.Name == Name))
+                errors.Add("Такое название типа автомобиля уже есть");
+        }
+        else
+        {
+            if (allCarTypes.Any(t => t.Id != CarType.Id && t.Name == Name))
+                errors.Add("Такое название типа автомобиля уже есть");
+        }
+
+        if (errors.Count > 0)
+        {
+            NotificationService.NotifyError(string.Join("\n", errors));
+            return;
+        }
+
+        DialogService.Close(new DialogResult
+            {
+                Confirmed = true,
+                Name = Name,
+                CanBePrimary = CanBePrimary,
+                CanBeSecondary = CanBeSecondary
+            });
+    }
+
+    public class DialogResult
+    {
+        public bool Confirmed { get; set; }
+        public string Name { get; set; }
+        public bool CanBePrimary{ get; set; }
+        public bool CanBeSecondary{ get; set; }
+    }
+}

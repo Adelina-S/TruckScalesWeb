@@ -1,0 +1,89 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+<RadzenCard Variant="Variant.Filled">
+    <RadzenRow JustifyContent="JustifyContent.Center">
+        <RadzenLabel>Справочник материалов</RadzenLabel>
+    </RadzenRow>
+    <RadzenRow Visible=true class="rz-my-3">
+        <RadzenStack Orientation="Orientation.Horizontal">
+            <RadzenButton Text="Добавить" ButtonStyle="ButtonStyle.Primary" Click="@AddMaterialClick" />
+            <RadzenButton Text="Редактировать" ButtonStyle="ButtonStyle.Secondary" Click="@ChangeMaterialClick" Disabled="@(SelectedMaterial.Any() == false)" />
+            <RadzenButton Text="Поднять" ButtonStyle="ButtonStyle.Secondary" Click="@UpMaterial" Disabled="@(SelectedMaterial.Any() == false)" />
+            <RadzenButton Text="Опустить" ButtonStyle="ButtonStyle.Secondary" Click="@DownMaterial" Disabled="@(SelectedMaterial.Any() == false)" />
+        </RadzenStack>
+    </RadzenRow>
+    <RadzenRow Style="margin-top: 10px;">
+        <RadzenDataGrid TItem="Material" Data="Materials" @bind-Value="SelectedMaterial"
+                        FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true">
+            <Columns>
+                <RadzenDataGridColumn Property="@nameof(Material.Name)" Title="Наименование" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(Material.CanBeSingle)" Title="Одиночный прокат" TextAlign="TextAlign.Center" />
+                <RadzenDataGridColumn Property="@nameof(Material.CanBeTransit)" Title="Транзит" Width="10%" TextAlign="TextAlign.Center"/>
+                <RadzenDataGridColumn Property="@nameof(Material.IsActive)" Title="Действующий" TextAlign="TextAlign.Center" />
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenRow>
+</RadzenCard>
+
+@code {
+    List<Material> Materials = new List<Material>();
+    IList<Material> SelectedMaterial = new List<Material>();
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+
+    private async Task LoadData(Guid? selected = null)
+    {
+        Materials = await DataService.GetAllMaterials();
+        if (selected != null)
+            SelectedMaterial = Materials.Where(t => t.Id == selected).ToList();
+        else
+            SelectedMaterial = new List<Material>();
+        await InvokeAsync(StateHasChanged);
+    }
+    private async void AddMaterialClick()
+    {
+        var result = await DialogService.OpenAsync<AddMaterial>("Введите данные материала", new Dictionary<string, object>(),
+       new DialogOptions() { Width = "30%" })
+       as AddMaterial.DialogResult;
+        if (result == null || result.Confirmed == false) return;
+
+        await DataService.AddMatarial(result.Name, result.CanBeSingle, result.CanBeTransit);
+        await LoadData();
+    }
+    private async void ChangeMaterialClick()
+    {
+        if (SelectedMaterial is null || SelectedMaterial.Any() == false) return;
+        var data = new Dictionary<string, object>();
+        var selectedMaterial = SelectedMaterial.FirstOrDefault();
+        data.Add("Material", selectedMaterial);
+        var result = await DialogService.OpenAsync<AddMaterial>("Редактирование данных материала", data,
+       new DialogOptions() { Width = "30%" })
+       as AddMaterial.DialogResult;
+        if (result == null || result.Confirmed == false) return;
+
+        await DataService.UpdateMaterial(selectedMaterial.Id, result.Name, result.CanBeSingle, result.CanBeTransit, result.IsActive);
+        await LoadData();
+    }
+    private async void UpMaterial()
+    {
+        var material = SelectedMaterial.FirstOrDefault();
+        if (material == null || material.Sorter == 0) return;
+        var result = await DataService.MoveMaterial(material.Sorter, material.Sorter - 1);
+        if (result)
+            await LoadData(material.Id);
+    }
+
+    private async void DownMaterial()
+    {
+        var material = SelectedMaterial.FirstOrDefault();
+        if (material == null) return;
+        var result = await DataService.MoveMaterial(material.Sorter, material.Sorter + 1);
+        if (result)
+            await LoadData(material.Id);
+    }
+}

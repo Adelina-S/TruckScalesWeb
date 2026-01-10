@@ -1,0 +1,56 @@
+﻿@inject IDataService DataService
+
+<style>
+    .wrap-text span {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+</style>
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenRow>
+    <RadzenStack Orientation="Orientation.Horizontal">
+        <RadzenLabel Text="От:"/>
+        <RadzenDatePicker TValue="DateTime" @bind-Value="startDate" Change=LoadData/>
+        <RadzenLabel Text="До:"/>
+            <RadzenDatePicker TValue="DateTime" @bind-Value="endDate" Change=LoadData />
+    </RadzenStack>
+</RadzenRow>
+<RadzenRow>
+    <RadzenDataGrid TItem="Weighing" Data="Weighings">
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Weighing.TalonShort)" Title="Талон"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.WeightDateString)" Title="Дата" CssClass="wrap-text"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.CarsList)" Title="Автомобили" CssClass="wrap-text"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.MaterialString)" Title="Материал"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.Tare)" Title="Вес тары, кг"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.Netto)" Title="Вес нетто, кг"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.Brutto)" Title="Вес брутто, кг"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.IsClosed)" Title="Закрыто"/>
+            <RadzenDataGridColumn Property="@nameof(Weighing.OperatorName)" Title="Оператор"/>
+
+        </Columns>     
+    </RadzenDataGrid>
+</RadzenRow>
+
+</RadzenCard>
+
+@code {
+    DateTime startDate = DateTime.Today - TimeSpan.FromDays(3);
+    DateTime endDate = DateTime.Today + TimeSpan.FromDays(1);
+    List<Weighing> Weighings = new List<Weighing>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+    private async Task LoadData()
+    {
+        Weighings = await DataService.GetAllWeighings(startDate, endDate);
+        await InvokeAsync(StateHasChanged);
+    }
+    async void DatePickerChanged() => await LoadData();
+}

@@ -1,0 +1,122 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+@inject NotificationService NotificationService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Государственный номер авто</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="GosNumber" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Модель и марка авто</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenTextBox @bind-Value="Model" class="rz-w-100" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Страна</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenDropDown TValue="Country" Data="Countries" TextProperty="FullName"
+                                class="rz-w-100" @bind-Value="Country" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Тип автомобиля</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenDropDown TValue="CarType" Data="CarTypes" TextProperty="Name"
+                                class="rz-w-100" @bind-Value="CarType"/>
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="6"><RadzenLabel>Доступность автомобиля</RadzenLabel></RadzenColumn>
+            <RadzenColumn Size="6"><RadzenCheckBox TValue="bool" @bind-Value="IsActive" /></RadzenColumn>
+        </RadzenRow>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary" Click="@Confirm" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult(){Confirmed=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    string GosNumber = null!;
+    string Model = null!;
+    Country Country = null!;
+    List<Country> Countries = null!;
+    CarType CarType = null!;
+    List<CarType> CarTypes = null!;
+    bool IsActive = true;
+
+    [Parameter]
+    public Car Car { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Countries = await DataService.GetAllCountries();
+        CarTypes = await DataService.GetAllCarTypes();
+        if (Car != null)
+        {
+            GosNumber = Car.GosNumber;
+            Model = Car.Model;
+            Country = Car.Country;
+            CarType = Car.CarType;
+            IsActive = Car.IsActive;
+        }
+        else
+        {
+            Country = Countries.FirstOrDefault();
+            CarType = CarTypes.FirstOrDefault();
+            IsActive = true;
+        }
+    }
+
+    private async Task Confirm()
+    {
+        List<string> errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(GosNumber))
+            errors.Add("Гос. номер автомобиля не может быть пустым");
+        if (Country is null)
+            errors.Add("Необходимо указать страну");
+        if (CarType is null)
+            errors.Add("Необходимо указать тип автомобиля");
+
+        if (errors.Count > 0)
+        {
+            NotificationService.NotifyError(string.Join("\n", errors));
+            return;
+        }
+        Car sameGosNumberCar = null;
+        if (Car is null)
+            sameGosNumberCar = (await DataService.GetAllCars()).FirstOrDefault(t => t.GosNumber == GosNumber && t.IsActive);
+        else 
+            sameGosNumberCar = (await DataService.GetAllCars()).FirstOrDefault(t => t.Id!=Car.Id && t.GosNumber == GosNumber && t.IsActive);
+        if (sameGosNumberCar is not null)
+        {
+
+            var result = await DialogService.OpenAsync<ConfirmCard>("Авто с таким номером уже есть. Вы уверены?", null,
+         new DialogOptions() { Width = "30%" })
+         as ConfirmCard.DialogResult;
+            if (result == null || result.Confirm == false) return;
+        }
+
+        DialogService.Close(new DialogResult
+        {
+            Confirmed = true,
+            GosNumber = GosNumber,
+            Model = Model,
+            Country = Country,
+            CarType = CarType,
+            IsActive = IsActive
+        });
+    }
+
+    public class DialogResult
+    {
+        public bool Confirmed { get; set; }
+        public string GosNumber { get; set; }
+        public string Model{ get; set; }
+        public Country Country{ get; set; }
+        public CarType CarType{ get; set; }
+        public bool IsActive{ get; set; }
+    }
+}

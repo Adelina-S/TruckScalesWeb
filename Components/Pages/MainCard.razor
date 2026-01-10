@@ -1,0 +1,248 @@
+﻿@using Microsoft.Extensions.Caching.Memory;
+@using TruckScalesWeb.Components.Controls.CarList;
+@using TruckScalesWeb.Components.Controls.MaterialSelector;
+
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject IMemoryCache MemoryCache
+@* @inject TruckScalesWeb.ScaleConnection.ScaleService ScaleService; *@
+@inject IDataService DataService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+    <WeightDisplay @ref="Display" Color="blue" />
+    <RadzenRow>
+        <RadzenColumn Size="3">
+                <WeighingModeSwitch @ref="WeighingModeSwitch" />
+           </RadzenColumn>
+        <RadzenColumn Size="6">
+            <WeighButton @ref=weighButton OnClick="ClickWeigh"/>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenStack Orientation="Orientation.Vertical" Style="padding-left: 50px;">
+                <RadzenButton Text="Создать талон" Click="ShowTalonPDF"/>
+                <RadzenButton Text="Отправить на печать"/>
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow>
+        <RadzenColumn Size="8">
+            <CarsList @ref="CarsList"/>
+        </RadzenColumn>
+        <RadzenColumn Size="4">
+            <MaterialSelector @ref="MaterialSelector"/>
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow>
+        <RadzenStack Orientation="Orientation.Horizontal">
+            <RadzenButton Text="Ручной ввод веса" Click="TestButtonClick"/>
+            <RadzenButton Text="Одиночное взвешивание" Click="TestButtonClick"/>
+            <RadzenButton Text="Транзит" Click="TestButtonClick"/>
+        </RadzenStack>
+    </RadzenRow>
+    <RadzenRow>
+        <RadzenColumn Size="6" Style="border: solid 1px;">
+                <RadzenImage @bind-Path="imageData" Style="width: 100%; height: 100%; object-fit: contain;" />
+        </RadzenColumn>
+            <RadzenColumn Size="6" Style="border: solid 1px;">
+            <NotClosedWeighingCard @ref=WeighingCard OnClick="@HandleWeighingClick"/>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+</RadzenCard>
+@code {
+
+    WeightDisplay Display;
+    CarsList CarsList;
+    WeighingModeSwitch WeighingModeSwitch;
+    MaterialSelector MaterialSelector;
+    NotClosedWeighingCard WeighingCard;
+
+    Weighing SelectedWeighing; //выбранное взвешивание
+
+    private Timer? _timer;
+    private bool hasSignal = false;
+
+
+    private Timer? _cameraTimer;
+    private List<string> cameraAdresses;
+    private int currentCamera = 0;
+    private string imageData;
+    private bool imageLoading = false;
+
+    private WeighButton weighButton; //кнопка взвешивания
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+        cameraAdresses = DataService.GetPhotoUrls();
+
+    }
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if (firstRender)
+        {
+            _timer = new Timer(UpdateWeightFromCache, null, 0, 500);
+            _cameraTimer = new Timer(ChangeCamera, null, 0, 2000);
+        }
+    }
+    private async Task TestButtonClick()
+    {
+        var cars = CarsList.SelectedCars;
+    }
+    private async Task LoadData()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task ClickWeigh()
+    {
+        var weight = Display.Weight;
+        var weighMode = WeighingModeSwitch.Value;
+        var cars = CarsList.SelectedCars;
+        var material = MaterialSelector.Value;
+        var talonNumber = await DataService.GetNextTalonNumber();
+        var curOperator = DataService.GetUser();
+        var data = new Dictionary<string, object>();
+        data.Add("Weight", weight);
+        data.Add("WeightMode", weighMode);
+        data.Add("WeightType", WeightTypes.Standard);
+        data.Add("Cars", cars);
+        data.Add("Material", material);
+        data.Add("Talon", talonNumber);
+        data.Add("Weighing", SelectedWeighing);
+        data.Add("Operator", curOperator);
+        var result = await DialogService.OpenAsync<ConfirmWeighingCard>("Подтверждение взвешивания", data,
+      new DialogOptions() { Width = "80%" })
+      as ConfirmWeighingCard.DialogResult;
+        if (result == null || result.Confirm == false) return;
+        await WeighingCard.Refresh();
+        await Reset();
+        //await InvokeAsync(StateHasChanged);
+    }
+    private async Task HandleWeighingClick(Weighing weighing)
+    {
+        SelectedWeighing = weighing;
+        if (SelectedWeighing is not null)
+        {
+            var first = weighing.OneWeighings.First();
+            if (first.IsEmpty)
+                await WeighingModeSwitch.SetValueAndDisabled(WeighingMode.Loaded, true);
+            else
+                await WeighingModeSwitch.SetValueAndDisabled(WeighingMode.Empty, true);
+            await CarsList.SetCars(weighing.Cars.Select(t=>t.Id).ToList());
+            if (first.IsEmpty == false)
+                await MaterialSelector.SetValueAndDisabled(weighing.Material, true);
+            else
+                await MaterialSelector.SetValueAndDisabled(weighing.Material, false);
+
+        }
+        else
+            await Reset();
+    }
+    public async Task Reset()
+    {
+        await WeighingModeSwitch.SetDisabled(false);
+        await CarsList.Reset();
+        await MaterialSelector.Reset();
+
+    }
+    bool analyzing = false;
+    private async Task<bool> Analyze()
+    {
+        analyzing = true;
+        if (Display.Weight==0 || CarsList.HaveCarErrors || CheckMaterialErrors())
+        {
+            await weighButton.Disable();
+            analyzing = false;
+            return false;
+        }
+        await weighButton.Enable();
+        analyzing = false;
+        return true;
+    }
+    private bool CheckMaterialErrors()
+    {
+        if (MaterialSelector.Value is null && WeighingModeSwitch.Value == WeighingMode.Loaded)
+            return true;
+        else return false;
+    }
+    private async void ChangeCamera(object? state)
+    {
+        if (imageLoading) return;
+        imageLoading = true;
+        try
+        {
+            var url = cameraAdresses[currentCamera];
+            var imageBytes = await Common.GetCameraImageAsync(url);
+            currentCamera = (currentCamera + 1) % cameraAdresses.Count();
+            // Конвертируем в base64 для RadzenImage
+            imageData = $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            // // Обработка ошибок в UI
+            // // Можно использовать RadzenNotification или RadzenAlert
+            // Console.WriteLine($"Ошибка загрузки: {ex.Message}");
+        }
+        imageLoading = false;
+    }
+    private async void UpdateWeightFromCache(object? state)
+    {
+        if (MemoryCache.TryGetValue<int>("CurrentWeight", out var weight))
+        {
+            if (hasSignal==false)
+            {
+                hasSignal = true;
+                _timer.Change(100, 100);
+                Display.SetSignal(true);
+            }
+            SetWeight(weight);
+        }
+        else
+        {
+            if (hasSignal==true)
+            {
+                hasSignal = false;
+                _timer.Change(500, 500);
+                Display.SetSignal(false);
+                SetWeight(0);
+            }
+        }
+        if (analyzing==false) await Analyze();
+    }
+    public void ShowTalonPDF()
+    {
+        if (SelectedWeighing==null) return;
+        try
+        {
+            string pdfPath = TruckScalesWeb.PDF.PdfService.GenerateAndSaveWeighingPdf(SelectedWeighing, "talon.pdf");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = pdfPath,
+                UseShellExecute = true 
+            });
+
+        }
+        catch (Exception ex)
+        {
+            NotificationService.NotifyError($"Не удалось открыть PDF: {ex.Message}");
+        }
+
+    }
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        _cameraTimer?.Dispose();
+    } 
+    void SetWeight(int weight)
+    {
+        Display.UpdateWeight(weight);
+    }
+}

@@ -1,0 +1,86 @@
+﻿@inject IDataService DataService;
+@inject DialogService DialogService;
+
+<RadzenCard Variant="Variant.Text">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenDataGrid TItem="Material" Data="AllMaterials" class="rz-w-100" @bind-Value="SelectedMaterial"
+                        FilterMode="FilterMode.Simple" AllowFiltering=true GridLines="DataGridGridLines.Both"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                        RowClick="@OnRowClick">
+            <Columns>
+                <RadzenDataGridColumn Property="@nameof(Material.Name)" Title="Номер" />
+                <RadzenDataGridColumn Property="@nameof(Material.CanBeSingle)" Title="Доступно одиночное" />
+                <RadzenDataGridColumn Property="@nameof(Material.CanBeTransit)" Title="Доступен транзит" />
+            </Columns>
+        </RadzenDataGrid>
+        <RadzenRow JustifyContent="JustifyContent.End">
+            <RadzenButton Text="Подтвердить" ButtonStyle="ButtonStyle.Primary"
+                          Click="@Confirm"
+                          Disabled="@(SelectedMaterial.Any()==false)" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Shade="Shade.Darker"
+                          Click="@(()=>DialogService.Close(new DialogResult(){Confirmed=false}))" />
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    List<Material> AllMaterials { get; set; } = new List<Material>();
+    IList<Material> SelectedMaterial { get; set; } = new List<Material>();
+
+    private DateTime? lastClickTime;
+    private Material lastClickedItem;
+
+    // List<string> CarTypeFilters = null!;
+    // List<string> CarTypesFilterData = new List<string>();
+
+    // List<string> CountryFilters = null!;
+    // List<string> CountryFilterData = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadData();
+
+    }
+
+    private async Task LoadData()
+    {
+        AllMaterials = (await DataService.GetAllMaterials()).Where(t => t.IsActive).OrderBy(t => t.Sorter).ToList();
+        // CarTypesFilterData = AllCars.OrderBy(t => t.CarTypeName).Select(t => t.CarTypeName).Distinct().ToList();
+        // CountryFilterData = AllCars.OrderBy(t => t.CountryName).Select(t => t.CountryName).Distinct().ToList();
+
+        await InvokeAsync(StateHasChanged);
+    }
+    private void Confirm()
+    {
+        DialogService.Close(new DialogResult() { Confirmed = true, MaterialId = SelectedMaterial.FirstOrDefault()?.Id });
+    }
+    private async Task OnRowClick(DataGridRowMouseEventArgs<Material> args)
+    {
+        // Проверка на двойной клик (интервал 300 мс)
+        var now = DateTime.Now;
+        if (lastClickTime.HasValue == false)
+        {
+            lastClickedItem = args.Data;
+            lastClickTime = now;
+        }
+        else if (lastClickedItem == args.Data)
+        {
+            var dt = (now - lastClickTime.Value).TotalMilliseconds;
+            if (dt < 300)
+                Confirm();
+            else
+                lastClickTime = now;
+        }
+        else
+        {
+            lastClickedItem = args.Data;
+            lastClickTime = now;
+        }
+    }
+    public class DialogResult
+    {
+        public bool Confirmed { get; set; }
+        public Guid? MaterialId { get; set; }
+    }
+}
